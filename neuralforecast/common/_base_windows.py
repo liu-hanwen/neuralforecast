@@ -55,6 +55,7 @@ class BaseWindows(pl.LightningModule):
         drop_last_loader=False,
         random_seed=1,
         alias=None,
+        mask_y_size=0,
         **trainer_kwargs,
     ):
         super(BaseWindows, self).__init__()
@@ -101,6 +102,7 @@ class BaseWindows(pl.LightningModule):
         self.windows_batch_size = windows_batch_size
         self.step_size = step_size
 
+        self.mask_y_size = mask_y_size
         # Scaler
         self.scaler = TemporalNorm(
             scaler_type=scaler_type, dim=1
@@ -325,7 +327,10 @@ class BaseWindows(pl.LightningModule):
         temporal_mask = temporal_mask.unsqueeze(
             -1
         )  # Add channel dimension for scaler.transform.
+        temporal_mask = temporal_mask[:, :, [0] * temporal_data.shape[-1]]
+        temporal_mask[:, -self.h-self.mask_y_size:, temporal_cols.get_loc("y")] = 0.
         temporal_data = self.scaler.transform(x=temporal_data, mask=temporal_mask)
+        temporal_data[:, -self.h-self.mask_y_size:-self.h, temporal_cols.get_loc("y")] = 0.
 
         # Replace values in windows dict
         temporal[:, :, temporal_cols.get_indexer(temporal_data_cols)] = temporal_data
